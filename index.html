@@ -64,7 +64,7 @@
         <div class="error-container">
             <div class="error-icon">⚠️</div>
             <div class="error-title">Không thể tải dữ liệu</div>
-            <div class="error-message">Vui lòng kiểm tra kết nối mạng và thử lại</div>
+            <div class="error-message">Vui lòng kiểm tra ID trong URL hoặc kết nối mạng và thử lại</div>
             <button class="error-button" onclick="location.reload()">Thử lại</button>
         </div>
     </div>
@@ -165,26 +165,50 @@
     <script>
         // Global variables để lưu dữ liệu từ JSON
         let apiData = null;
+        let currentId = null;
         let giftLink = null; // Lưu link quà tặng từ JSON
 
+        // Function để lấy ID từ URL parameters
+        function getIdFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('id');
+        }
 
 
-        // Function để lấy dữ liệu trực tiếp từ response.json
-        async function fetchDataFromJSON() {
+
+        // Function để lấy dữ liệu theo ID từ response.json
+        async function fetchDataFromJSON(id) {
             try {
                 const response = await fetch('response.json');
                 const result = await response.json();
                 
-                if (result.success && result.data) {
-                    apiData = result.data;
-                    console.log('Dữ liệu từ JSON:', apiData);
-                    return apiData;
+                if (result.success && result.data && Array.isArray(result.data)) {
+                    let selectedData = null;
+                    
+                    if (id) {
+                        // Tìm object có _id trùng với id từ URL
+                        selectedData = result.data.find(item => item._id === id);
+                        console.log('Tìm kiếm ID:', id);
+                    }
+                    
+                    // Nếu không tìm thấy hoặc không có ID, lấy object đầu tiên
+                    if (!selectedData) {
+                        selectedData = result.data[0];
+                        console.log('Sử dụng dữ liệu mặc định (đầu tiên)');
+                    }
+                    
+                    if (selectedData) {
+                        apiData = selectedData;
+                        console.log('Dữ liệu được chọn:', apiData);
+                        return apiData;
+                    } else {
+                        throw new Error('Không có dữ liệu nào trong mảng');
+                    }
                 } else {
-                    throw new Error(result.message || 'Không tìm thấy dữ liệu');
+                    throw new Error(result.message || 'Không tìm thấy dữ liệu hoặc sai cấu trúc');
                 }
             } catch (error) {
                 console.error('Lỗi khi đọc file JSON:', error);
-                // Fallback về dữ liệu mặc định nếu có lỗi
                 return null;
             }
         }
@@ -406,7 +430,10 @@
         async function initializeData() {
             showLoading();
             
-            const data = await fetchDataFromJSON();
+            currentId = getIdFromUrl();
+            console.log('ID từ URL:', currentId);
+            
+            const data = await fetchDataFromJSON(currentId);
             
             if (data) {
                 // Cập nhật các thành phần từ dữ liệu JSON
